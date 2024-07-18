@@ -1,5 +1,10 @@
 package crawlerxueqiu
 
+import (
+	"fmt"
+	"strings"
+)
+
 type SuggestStock struct {
 	Code    int                `json:"code"`
 	Data    []SuggestStockData `json:"data"`
@@ -30,9 +35,22 @@ type QuoteData struct {
 	Tags   []QuoteTags `json:"tags"`
 }
 
+func (q *QuoteData) Format() string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("%s(%s): %v (%v%%)\n", q.Quote.Name, q.Quote.Symbol, q.Quote.Current, q.Quote.Percent))
+	sb.WriteString("\n")
+	sb.WriteString(fmt.Sprintf("最高: %v\n", q.Quote.High))
+	sb.WriteString(fmt.Sprintf("最低: %v\n", q.Quote.Low))
+	sb.WriteString(fmt.Sprintf("总市值: %v\n", q.Quote.MarketCapital))
+	sb.WriteString(fmt.Sprintf("市盈率(TTM): %v\n", q.Quote.PeTtm))
+	sb.WriteString(fmt.Sprintf("股息率(TTM): %v\n", q.Quote.DividendYield))
+	return sb.String()
+}
+
 type QuoteQuote struct {
+	CurrentExt               float64 `json:"current_ext"`
 	Symbol                   string  `json:"symbol"`
-	High52W                  float64 `json:"high52w"`
+	PercentExt               float64 `json:"percent_ext"`
 	Delayed                  int     `json:"delayed"`
 	Type                     int     `json:"type"`
 	TickSize                 float64 `json:"tick_size"`
@@ -49,7 +67,6 @@ type QuoteQuote struct {
 	VolumeRatio              float64 `json:"volume_ratio"`
 	ProfitForecast           float64 `json:"profit_forecast"`
 	TurnoverRate             float64 `json:"turnover_rate"`
-	Low52W                   float64 `json:"low52w"`
 	Name                     string  `json:"name"`
 	Exchange                 string  `json:"exchange"`
 	PeForecast               float64 `json:"pe_forecast"`
@@ -70,6 +87,7 @@ type QuoteQuote struct {
 	Dividend                 float64 `json:"dividend"`
 	DividendYield            float64 `json:"dividend_yield"`
 	Currency                 string  `json:"currency"`
+	ChgExt                   float64 `json:"chg_ext"`
 	Navps                    float64 `json:"navps"`
 	Profit                   float64 `json:"profit"`
 	Timestamp                int64   `json:"timestamp"`
@@ -84,12 +102,8 @@ type QuoteQuote struct {
 }
 
 type QuoteMarket struct {
-	StatusID     int         `json:"status_id"`
-	Region       string      `json:"region"`
-	Status       string      `json:"status"`
-	TimeZone     string      `json:"time_zone"`
-	TimeZoneDesc interface{} `json:"time_zone_desc"`
-	DelayTag     int         `json:"delay_tag"`
+	Region string `json:"region"`
+	Status string `json:"status"`
 }
 
 type QuoteOthers struct {

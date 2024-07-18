@@ -14,10 +14,12 @@ type Crawler struct {
 }
 
 type Interface interface {
-	GetCookie() error
-	GetSuggestStock(query string) (*SuggestStockData, error)
+	getCookie() error
+	getSuggestStock(query string) (*SuggestStockData, error)
 	GetStockBasicData(symbol string) (*QuoteData, error)
 }
+
+var _ Interface = (*Crawler)(nil)
 
 func NewCrawler() *Crawler {
 	return &Crawler{
@@ -25,7 +27,7 @@ func NewCrawler() *Crawler {
 	}
 }
 
-func (i *Crawler) GetCookies() error {
+func (i *Crawler) getCookie() error {
 	resp, err := i.httpClient.R().Get("https://xueqiu.com/")
 	if err != nil {
 		return err
@@ -43,8 +45,8 @@ func (i *Crawler) GetCookies() error {
 	return fmt.Errorf("获取cookie失败")
 }
 
-func (i *Crawler) GetSuggestStock(q string) (*SuggestStockData, error) {
-	err := i.GetCookies()
+func (i *Crawler) getSuggestStock(q string) (*SuggestStockData, error) {
+	err := i.getCookie()
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +74,7 @@ func (i *Crawler) GetSuggestStock(q string) (*SuggestStockData, error) {
 }
 
 func (i *Crawler) GetStockBasicData(symbol string) (*QuoteData, error) {
-	code, err := i.GetSuggestStock(symbol)
+	code, err := i.getSuggestStock(symbol)
 	if err != nil {
 		return nil, err
 	}
