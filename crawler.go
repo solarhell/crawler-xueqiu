@@ -1,81 +1,99 @@
-package main
+package crawlerxueqiu
 
 import (
 	"fmt"
-	"log"
 	"net/http"
+
+	"github.com/go-resty/resty/v2"
 )
 
-func getToken() (string, error) {
-	resp, err := http.Get("https://xueqiu.com/")
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
+type Crawler struct {
+	httpClient *resty.Client
 
-	for _, cookie := range resp.Cookies() {
-		fmt.Println(cookie.Name, cookie.Value)
-		if cookie.Name == "xq_a_token" {
-			return cookie.Value, nil
-		}
-	}
-
-	return "", nil
+	cookies []*http.Cookie
 }
 
-func getSuggestStock(q string) (string, error) {
-	token, err := getToken()
-	if err != nil {
-		return "", err
-	}
+type Interface interface {
+	GetCookie() error
+	GetSuggestStock(query string) (*SuggestStockData, error)
+	GetStockBasicData(symbol string) (*QuoteData, error)
+}
 
-	url := "https://xueqiu.com/query/v1/suggest_stock.json?q=" + q
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("Cookie", token)
-
-	// 发送请求
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == 200 {
-		// 处理响应
-		// 假设响应是 JSON 格式，解析 JSON 并返回数据
-		// 这里为了简单起见，仅返回空字符串
-		return "", nil
-	} else {
-		return "", fmt.Errorf("请求失败，状态码: %d", resp.StatusCode)
+func NewCrawler() *Crawler {
+	return &Crawler{
+		httpClient: GetHttpClient(),
 	}
 }
 
-func getStockBasicData(symbol string) error {
-	code, err := getSuggestStock(symbol)
+func (i *Crawler) GetCookies() error {
+	resp, err := i.httpClient.R().Get("https://xueqiu.com/")
 	if err != nil {
 		return err
 	}
 
-	if code == "" {
-		return fmt.Errorf("没有返回建议股票代码")
+	for _, cookie := range resp.Cookies() {
+		if cookie.Name == "xq_a_token" && cookie.Value != "" {
+			cookies := make([]*http.Cookie, 0)
+			cookies = append(cookies, cookie)
+			i.cookies = cookies
+			return nil
+		}
 	}
 
-	// 使用获取到的代码进行其他操作
-	// 比如获取股票详细数据
-	// 这里为了简单起见，仅打印代码
-	fmt.Println("Suggest Stock Code:", code)
-
-	return nil
+	return fmt.Errorf("获取cookie失败")
 }
 
-func main() {
-	symbol := "gzmt"
-	err := getStockBasicData(symbol)
+func (i *Crawler) GetSuggestStock(q string) (*SuggestStockData, error) {
+	err := i.GetCookies()
 	if err != nil {
-		log.Fatalln(err)
+		return nil, err
 	}
+
+	suggestStock := new(SuggestStock)
+
+	resp, err := i.httpClient.R().
+		SetCookies(i.cookies).
+		SetResult(suggestStock).
+		SetQueryParam("q", q).
+		Get("https://xueqiu.com/query/v1/suggest_stock.json")
+	if err != nil {
+		return nil, err
+	}
+
+	if suggestStock.Code != 200 || !suggestStock.Success {
+		return nil, fmt.Errorf("获取建议股票失败: %s", resp.String())
+	}
+
+	if len(suggestStock.Data) == 0 {
+		return nil, fmt.Errorf("没有找到建议股票: %s", resp.String())
+	}
+
+	return &suggestStock.Data[0], nil
+}
+
+func (i *Crawler) GetStockBasicData(symbol string) (*QuoteData, error) {
+	code, err := i.GetSuggestStock(symbol)
+	if err != nil {
+		return nil, err
+	}
+
+	quote := new(Quote)
+
+	resp, err := i.httpClient.R().
+		SetCookies(i.cookies).
+		SetResult(quote).
+		SetQueryParams(map[string]string{
+			"symbol": code.Code,
+			"extend": "detail",
+		}).
+		Get("https://stock.xueqiu.com/v5/stock/quote.json")
+	if err != nil {
+		return nil, err
+	}
+
+	if quote.ErrorCode != 0 {
+		return nil, fmt.Errorf("获取quote失败: %s", resp.String())
+	}
+
+	return &quote.Data, nil
 }

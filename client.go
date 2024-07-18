@@ -1,8 +1,9 @@
-package main
+package crawlerxueqiu
 
 import (
-	"github.com/go-resty/resty/v2"
 	"time"
+
+	"github.com/go-resty/resty/v2"
 )
 
 const (
@@ -14,7 +15,8 @@ func GetHttpClient() *resty.Client {
 		SetRetryCount(3).
 		SetRetryWaitTime(1*time.Second).
 		SetRetryMaxWaitTime(10*time.Second).
-		SetHeader("User-Agent", userAgent)
+		SetHeader("User-Agent", userAgent).
+		SetCookieJar(nil)
 
 	return client
 }

@@ -1,6 +1,6 @@
-module github.com/solarhell/crawler-xueqiu
+module github.com/solarhell/crawlerxueqiu
 
-go 1.22.5
+go 1.22
 
 require github.com/go-resty/resty/v2 v2.13.1
 
